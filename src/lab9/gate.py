@@ -35,6 +35,15 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
       - an item's slice tags in PR rows differ from the baseline's (relabelling an item out of a
         slice hides its regression from the slice gate)"""
     problems = []
+    for section in ("metrics", "slices"):
+        for entry in spec.get(section, []):
+            threshold = entry.get("threshold", {}) if section == "metrics" else entry
+            for bound in ("min", "max", "max_increase"):
+                if bound in threshold and (type(threshold[bound]) not in (int, float) or not math.isfinite(threshold[bound])):
+                    problems.append(f"spec: invalid {bound} threshold")
+    for field in ("llm", "metric_spec_version", "eval_set"):
+        if pr.get("manifest", {}).get(field) != base.get("manifest", {}).get(field):
+            problems.append(f"manifest: incompatible {field}")
     graded = {m["id"] for m in spec.get("metrics", []) if m.get("level") != "system"}
     # Only metrics present on individual rows are graded; pass-k is aggregate-only.
     aggregate_only = {"pass_5"} | {m for m in graded if m.startswith(("pass_at_", "pass_hat_"))}
@@ -72,6 +81,16 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
                 if row["item_id"] in slice_map and slice_map[row["item_id"]] != tags:
                     problems.append(f"{label}: inconsistent slice tags")
                 slice_map[row["item_id"]] = tags
+            for metric in spec.get("metrics", []):
+                mid = metric["id"]
+                if mid not in graded or not rows:
+                    continue
+                values = [r.get(mid) for r in rows]
+                if all(type(v) in (bool, int, float) and math.isfinite(v) for v in values):
+                    expected = sum(values) if metric.get("kind") == "safety" else round(sum(values) / len(values), 4)
+                    actual = report["metrics"].get(mid)
+                    if not isinstance(actual, (int, float)) or not math.isclose(actual, expected, abs_tol=1e-4):
+                        problems.append(f"{label}: aggregate contradicts rows for {mid}")
             inventories.append((set(pairs), slice_map, seeds, manifest["items"]))
         except (KeyError, TypeError, ValueError):
             problems.append(f"{label}: malformed report")

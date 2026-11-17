@@ -9,7 +9,7 @@ jobs:
     outputs: {lab8: "${{ steps.has.outputs.lab8 }}"}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
       - id: has
         run: "test -d src/lab8 && echo lab8=1 >> \"$GITHUB_OUTPUT\" || echo skip, overlay without src/lab8"
 
@@ -26,7 +26,10 @@ jobs:
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
+      - name: Load trusted base metric spec
+        env: {BASE_SHA: "${{ github.event.pull_request.base.sha || github.sha }}"}
+        run: git show "$BASE_SHA:src/config/metric_spec.yaml" > /tmp/base-metric-spec.yaml
       # setup-uv publishes only full tags (no @v10); pin the SHA.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with: {python-version: "3.13", activate-environment: true, enable-cache: true, cache-dependency-glob: "src/requirements*.txt"}
@@ -38,7 +41,7 @@ jobs:
         shell: bash
         run: |
           python -m lab9.eval --shape swarm --spec "$EVAL_SPEC" --out reports/eval_pr.json
-          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
+          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC" --base-spec /tmp/base-metric-spec.yaml
       - name: Check the committed baseline and the M3 metric
         run: python -m lab9.ci_check --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
       - name: Verify the gate accepts fixed
@@ -69,7 +72,10 @@ jobs:
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
+      - name: Load trusted base v2 metric spec
+        env: {BASE_SHA: "${{ github.event.pull_request.base.sha || github.sha }}"}
+        run: git show "$BASE_SHA:src/config/metric_spec_v2.yaml" > /tmp/base-metric-spec-v2.yaml
       - id: has
         run: "test -f reports/baseline_v2.json && echo v2=1 >> \"$GITHUB_OUTPUT\" || echo skip, no baseline_v2"
       - if: steps.has.outputs.v2
@@ -82,4 +88,4 @@ jobs:
       - if: steps.has.outputs.v2
         run: python -m lab9.evalset --v2
       - if: steps.has.outputs.v2
-        run: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json
+        run: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec /tmp/base-metric-spec-v2.yaml

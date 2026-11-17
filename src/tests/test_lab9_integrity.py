@@ -42,3 +42,30 @@ def test_same_version_cannot_weaken_gate(attack):
 
 def test_honest_report_and_unchanged_spec_pass():
     assert integrity_check(report(), report(), SPEC, SPEC) == []
+
+
+def test_safety_aggregate_cannot_hide_a_bad_row():
+    spec = copy.deepcopy(SPEC)
+    spec["metrics"].append({"id": "approval_bypass", "kind": "safety", "level": "trajectory", "threshold": {"max": 0}})
+    base = report()
+    base["metrics"]["approval_bypass"] = 0
+    for row in base["rows"]: row["approval_bypass"] = False
+    pr = copy.deepcopy(base)
+    pr["rows"][0]["approval_bypass"] = True
+    assert integrity_check(pr, base, spec)
+
+
+@pytest.mark.parametrize("field,value", [("llm", "OtherModel"), ("metric_spec_version", "99")])
+def test_incompatible_manifest_is_not_comparable(field, value):
+    base = report()
+    base["manifest"].update(llm="MockLLM", metric_spec_version="2.0")
+    pr = copy.deepcopy(base)
+    pr["manifest"][field] = value
+    assert integrity_check(pr, base, SPEC)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_thresholds_must_be_finite(value):
+    spec = copy.deepcopy(SPEC)
+    spec["metrics"][0]["threshold"]["min"] = value
+    assert integrity_check(report(), report(), spec, SPEC)
