@@ -14,14 +14,14 @@ Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_over
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `<shape> <claim>@<seed>`, run ID trong report |
-| Triệu chứng | Grader nào fail; reply nói gì so với ledger ghi gì |
-| Bước sai đầu tiên | Số thứ tự event + kind + trích payload (≤1 dòng) |
-| Vì sao là bước *đầu tiên* | Các bước trước đó đúng ra sao (dẫn số event) |
-| Failure mode | Mã FM-xx trong `docs/failure_taxonomy.md` |
-| Đối chứng | Cùng claim@seed trên shape `fixed`: bước đó khác thế nào |
-| Regression test | Tên test + grader/assert nào bắt được; đã thấy fail trên variant lỗi và pass trên `fixed` chưa |
-| Chưa chắc chắn | Điều trace không chứng minh được |
+| Trial | `seeded_regression C-002@11`, `R-seeded_regression-C-002-s11` |
+| Triệu chứng | Lab 8 FAIL `status resolved != denied`; reply 20.000đ, ledger 20000 nhưng nhãn 0. |
+| Bước sai đầu tiên | Event 3 `model_override`: `{"delay_days": 5}`. |
+| Vì sao là bước *đầu tiên* | Event 1 handoff chỉ đọc; event 2 investigator trả order đúng delay=2; event 3 mới thay bằng ticket=5. |
+| Failure mode | FM-03 ticket_trust |
+| Đối chứng | `fixed C-002@11`, `R-fixed-C-002-s11`: event 3 quote=0, không override, status denied, ledger 0, Lab 8 PASS. |
+| Regression test | `tests/test_lab9_trace_case.py::test_ticket_override_is_first_bad_step_and_fixed_restores_db_fact`: thực chạy cả hai, variant sai bị grader từ chối và fixed pass. |
+| Chưa chắc chắn | Không chứng minh nguyên nhân bên trong model thật; đây là công tắc lỗi deterministic của MockLLM/variant, không phải quan sát production. |
 
 ## Quy tắc
 

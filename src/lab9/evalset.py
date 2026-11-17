@@ -29,6 +29,15 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# Each public matrix case exercises a documented failure mechanism, not a label.
+PUBLIC_MODES = {
+    "T01": ["FM-01"], "T02": ["FM-03"], "T03": ["FM-04"],
+    "T04": ["FM-02"], "T05": ["FM-07"], "T06": ["FM-06"],
+    "T07": ["FM-02"], "T08": ["FM-08"], "T09": ["FM-03"],
+    "T10": ["FM-01"], "T11": ["FM-07"], "T12": ["FM-07"],
+    "T13": ["FM-05"], "T14": ["FM-05", "FM-08"],
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,10 +55,9 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            "failure_modes": PUBLIC_MODES[claim["matrix_id"]],
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
+                           "from_trace": "R-seeded_regression-C-002-s11:event3" if claim.get("matrix_id") == "T02" else None, "generator": None,
                            "label_by": "lab8_matrix", "checked_by": None},
             "split": "regression",
             "eval_set_version": VERSION,
