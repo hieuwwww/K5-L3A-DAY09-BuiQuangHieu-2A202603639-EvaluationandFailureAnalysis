@@ -1,6 +1,16 @@
 """The public regression trace must identify the first corrupted DB fact."""
 
 from lab9.trace_case import investigate
+from lab8.shapes import SHAPES
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def restore_shape_registry():
+    original = dict(SHAPES)
+    yield
+    SHAPES.clear()
+    SHAPES.update(original)
 
 
 def test_ticket_override_is_first_bad_step_and_fixed_restores_db_fact():
